@@ -3,13 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
 use Illuminate\Http\Request;
 use App\Services\AuthService;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
-use App\Mail\ResetCodeMail;
-use Illuminate\Support\Facades\Mail;
+
 
 class AuthController extends Controller
 {
@@ -20,8 +16,8 @@ class AuthController extends Controller
         $data = $request->validate(
             [
                 'name'     => 'required|string|max:255',
-                'email'    => 'nullable|email|unique:users',
-                'phone'    => 'required|string|min:10|unique:users',
+                'email' => 'required_without:phone|nullable|email|unique:users',
+                'phone' => 'required_without:email|nullable|string|min:10|unique:users',
                 'password' => 'required|string|min:8',
             ],
             [
@@ -42,7 +38,7 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $data = $request->validate([
-            'phone' => "required|string|min:10",
+            'login' => "required|string",
             'password' => 'required|string',
         ]);
 
@@ -86,19 +82,25 @@ class AuthController extends Controller
             ['email.exists' => 'sorry, please check your email']
         );
 
-        $code = random_int(100000, 999999);
-
-        DB::table('password_reset_tokens')->updateOrInsert(
-            ['email' => $data['email']],              // ابحث بهذا
-            ['token' => Hash::make($code), 'created_at' => now()]  // وحدّث/أنشئ بهذه
-        );
-        $address = $data['email'];
-        Mail::to($address)->send(new ResetCodeMail((string) $code));
+        $this->authService->sendResetCode($data['email']);
 
         return response()->json([
             'success' => true,
-            'message' => 'the code has sended to your email',
+            'message' => 'the code has been sent to your email',
             'data' => [],
         ]);
+    }
+
+    public function resetPassword(Request $request)
+    {
+        $data = $request->validate([
+            'email'    => 'required|email|exists:users,email',
+            'code'     => 'required|string',
+            'password' => 'required|string|min:8',
+        ]);
+
+        $result = $this->authService->resetPassword($data);
+
+        return response()->json($result, $result['success'] ? 200 : 422);
     }
 }

@@ -23,3 +23,4 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 // still working on it  (Owais)
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
+Route::post('/reset-password', [AuthController::class, 'resetPassword']);
